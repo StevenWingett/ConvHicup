@@ -1,0 +1,136 @@
+#!/usr/bin/perl
+
+###################################################
+#Takes FASTA genome files and creates virtual
+#reads of a pre-defined length (reads at the very
+#end of chromosmes may be truncated
+###################################################
+
+use strict;
+use warnings;
+use Getopt::Long;
+use POSIX;
+
+use Data::Dumper;
+
+#Option variables
+my $length;
+my $offset;
+
+my $config_result = GetOptions(
+	"length=i" => \$length,
+	"offset=i" => \$offset
+);
+
+die "Please specify files to process.\n" unless @ARGV;
+
+$length = 50 unless defined $length;
+$offset = 10 unless defined $offset;
+
+print "Virtual read length set to $length bps\n";
+print "Offset: $offset bps\n";
+
+my @files = deduplicate_array(@ARGV);
+my %genome;   #%{chromosome} = sequence
+
+
+
+
+
+#Read in the genome
+foreach my $file (@files){
+
+	print "Reading '$file'\n";
+
+	if($file =~ /\.gz$/){
+		open( IN, "zcat $file |" ) or die "Couldn't read file '$file: $!";
+	}else{
+		open( IN, '<', $file ) or die "Couldn't read file '$file: $!";
+	}
+
+	my $csome;
+	while (<IN>) {
+		my $line = $_;
+		chomp($line);
+		next if $line =~ /^\s*$/;
+
+		if ( $line =~ /^\>/ ) {    #Process FASTA header to determine chromosome
+			unless($line =~ /^\>(\S+).*$/){
+				die "File '$file' is not in FASTA format at line:\n$line\nA chromosome name is reqired immediately after '>' (blank spaces are not allowed)\nFor more details on FASTA format go to:\nhttp://en.wikipedia.org/wiki/FASTA_format\n";
+			}
+			
+			$csome = $1;
+			
+			if(exists $genome{$csome}){
+				die "Chromosome name '$csome' occurs more than once in input file(s)\n";
+			}
+			next;
+		}	
+		$genome{$csome} .= $line;
+	}	
+close IN or die "Could not close $file\n";
+
+}
+
+
+
+
+#print Dumper \%genome;
+
+#Create virtual reads
+open ( OUT, '>', 'virtual_reads.fasta') or die "Could not write to 'virtual_reads.fasta' : $!";
+
+foreach my $csome (keys %genome){
+	my $start = 1;
+	my $end;
+	
+	print "Creating virtual reads for chromosome '$csome'\n";
+
+	my $csomeSize = length ($genome{$csome});
+	while($csomeSize > ($start + $length - 1) ){    #All reads $length bps
+		my $read = substr($genome{$csome}, $start - 1, $length);    #Offset is 0-based
+		$end = $start + $length - 1;
+		
+		print OUT '>' . $csome . '_____' . $start . '_____' . $end . "\n";
+		print OUT "$read\n";
+		$start = $start + $offset;
+	}
+	
+	#The last read in the chromosome (of variable length)
+	my $basesRemaining = $csomeSize - $start + 1;
+	#print "$start\t$basesRemaining\t$csomeSize\n\n";
+	
+	if($basesRemaining){    #Only if any bases are left
+		my $read = substr($genome{$csome}, $start - 1, $basesRemaining);     #Offset is 0-based
+		$end = $start + $basesRemaining - 1;
+	
+		print OUT '>' . $csome . '_____' . $start . '_____' . $end . "\n";
+		print OUT "$read\n";
+	}	
+}
+
+close OUT or die "Could not close 'virtual_reads.gz' : $!";
+
+print "Processing complete.\n";
+
+exit (0);
+
+
+#################################################################
+#Subroutines
+#################################################################
+
+
+#Sub: deduplicate_array
+#Takes and array and returns the array with duplicates removed
+#(keeping 1 copy of each unique entry).
+sub deduplicate_array {
+    my @array = @_;
+    my %uniques;
+
+    foreach (@array) {
+        $uniques{$_} = '';
+    }
+    my @uniques_array = keys %uniques;
+    return @uniques_array;
+}

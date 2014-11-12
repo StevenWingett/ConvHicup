@@ -1,0 +1,54 @@
+#!/usr/bin/perl
+
+##############################################
+#Perl script takes genome FASTA files and maps 
+#to the relevant reference genome. 
+#
+#############################################
+
+use strict;
+use warnings;
+use Getopt::Long;
+use POSIX;
+
+use Data::Dumper;
+
+my $bowtie;
+my $help;
+my $index;
+
+my $config_result = GetOptions(
+	"bowtie=s" => \$bowtie,
+    "index=s" =>  \$index,
+	"help" => \$help,
+);
+
+
+die "Please specify ONE input fasta file" unless (@ARGV == 1);
+
+$bowtie = '/bi/apps/bowtie/1.1.0/bowtie' unless defined $bowtie;
+$index = '/bi/scratch/Genomes/Mouse/NCBIM37/Mus_musculus.NCBIM37' unless defined $index;
+
+print "Using Bowtie at: $bowtie\n";
+print "Mapping against Bowtie indices: $index\n";
+
+my $command = "$bowtie -m 1 -n 1 --best -p 4 -f --sam --chunkmbs 512 $index $ARGV[0] $ARGV[0].sam";
+my $clusterCommand = "echo \"$bowtie -m 1 -n 1 --best -p 4 -f --sam $index $ARGV[0] $ARGV[0].sam\" | qsub -cwd -V -l vf=4G -pe orte 4 -o mapaGen.out -j y -N mapaGen -m eas -M steven.wingett\@babraham.ac.uk";
+
+
+
+#!system("$command") or die "Could not execute : $command : $!";
+!system("$clusterCommand") or die "Could not execute : $clusterCommand : $!";
+
+print "Processing complete\n";
+
+exit(0);  
+
+
+
+
+
+
+
+
+

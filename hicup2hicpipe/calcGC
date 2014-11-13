@@ -94,3 +94,27 @@ close OUT or die "Could not close filehandle on '$digest.GC.txt': $!";
 print "Processing complete.\n";
 
 exit (0);
+
+
+
+
+
+#################################################################
+#Subroutines
+#################################################################
+
+
+#Sub: deduplicate_array
+#Takes and array and returns the array with duplicates removed
+#(keeping 1 copy of each unique entry).
+sub deduplicate_array {
+    my @array = @_;
+    my %uniques;
+
+    foreach (@array) {
+        $uniques{$_} = '';
+    }
+    my @uniques_array = keys %uniques;
+    return @uniques_array;
+}
+

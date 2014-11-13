@@ -1,0 +1,304 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use Data::Dumper;
+
+###############################################################################
+#A Perl Script reading a HiCUP digest file (with GC fragment content appended)
+#and calculates the FEnd positions, and then determines the percentage of 
+#virtual reads mapping to each fragment end.
+##############################################################
+
+use Getopt::Long;
+use POSIX;
+
+use Data::Dumper;
+
+#Option variables
+my $digestGC;
+my $length;
+
+my $config_result = GetOptions(
+	"digest=s" => \$digestGC,
+	"length=i" => \$length
+);
+
+#Check user input
+die "Please specify ONE --digest file to process.\n" unless defined $digestGC;
+die "Please specify ONE virtual reads file to process.\n" unless scalar @ARGV == 1;
+
+$length = 500 unless defined $length;
+
+print "FEnd length set to $length bps\n";
+
+print "Processing digest file '$digestGC'\nThis should already contain GC scores\n";
+
+my %fends = identify_fends($digestGC, $length, 2);
+
+#print Dumper \%fends;
+
+
+
+#Create summary file
+open(SUMMARY, '>', 'summary_mapaFends.txt') or die "Could not write to 'summary_mapaFends.txt' : $!";
+print SUMMARY "#Remember virtual reads will be positioned against +ve/-ve fends => virtual reads x 2\n";
+print SUMMARY "File";
+my %summaryCounter;
+my @summaryCategories = qw( Virtual_Reads_Processed Virtual_Read_Maps_Found_in_FEnd
+						Virtual_Read_Unmapped_Found_in_FEnd Virtual_Read_Maps_Not_in_FEnd 
+						Virtual_Read_Unmapped_not_in_FEnd );
+
+						
+						
+foreach my $category (@summaryCategories){
+	print SUMMARY "\t$category";
+	$summaryCounter{$category}= 0;
+}
+print SUMMARY "\n";
+
+#Process mapability file
+print "Reading virtual reads file '$ARGV[0]'\n";
+open( VIRTUAL, '<', $ARGV[0]) or die "Could not write to $ARGV[0] : $!";
+
+while(<VIRTUAL>){
+	my $read = $_;
+	chomp $read;
+
+	next if(substr($read, 0, 1) eq '@');
+	$summaryCounter{Virtual_Reads_Processed}++;
+	
+	my ($id, $samFlag) = split(/\t/, $read);
+	my $mappedToGenome = ismapped($samFlag);
+	my ($csome, $start, $end) = split(/_____/, $id);
+
+	my $middle = ( abs($end - $start + 1) / 2) + $start;
+	
+	#Does this read overlap a positive FEnd?
+	my $posFend = findFend($csome, $middle, '+', \%fends);
+	my $negFend = findFend($csome, $middle, '-', \%fends);
+		
+	
+	foreach my $fend ($posFend, $negFend){
+		if($fend ne 0){	
+			my ($lookup_region, $csome, $fend_start, $fend_end, $strand) = split(/\t/, $fend); 
+		
+			if($mappedToGenome){
+				$fends{"$csome\t$lookup_region\t$strand"}->{$fend_start}->{$fend_end}[0]++;    #Mapped
+				$summaryCounter{Virtual_Read_Maps_Found_in_FEnd}++;
+			}else{
+				$fends{"$csome\t$lookup_region\t$strand"}->{$fend_start}->{$fend_end}[1]++;    #Not mapped
+				$summaryCounter{Virtual_Read_Unmapped_Found_in_FEnd}++;
+			}
+		}else{
+			if($mappedToGenome){
+				$summaryCounter{Virtual_Read_Maps_Not_in_FEnd}++;
+			}else{
+				$summaryCounter{Virtual_Read_Unmapped_not_in_FEnd}++;
+			}
+		}
+	}
+}
+
+print Dumper \%fends;
+
+close VIRTUAL or die "Could not close filehandle on $ARGV[0] : $!";
+
+
+print SUMMARY $ARGV[0];
+foreach my $category (@summaryCategories){
+	print SUMMARY "\t$summaryCounter{$category}";
+}
+print SUMMARY "\n";
+close SUMMARY or die "Could not close filehandle on 'summary_mapaFends.txt' : $!";
+
+
+#No re-read the digest file again and edit to 
+open( DIGESTGC, '<', $digestGC) or die "Could not read '$digestGC' : $!";
+open( MAPA, '>', "$digestGC.mapa.txt") or die "Could not write to '$digestGC.mapa.txt' : $!";
+print MAPA scalar <DIGESTGC>;    #Ignore headers
+my $header2 = scalar <DIGESTGC>;
+chomp $header2;
+$header2 .= "\tPos_FEnd_Mapa\tNeg_Fend_Mapa\n";
+print MAPA $header2;
+
+while(<DIGESTGC>){
+	my $line = $_;
+	chomp $line;
+
+	my ($csome, $start, $end) = split(/\t/, $line);
+
+	#Determine %Mapability for positive FEnd
+	my $pos_fend_start = $end - $length + 1;
+	if ( $pos_fend_start < 1 ) {
+			$pos_fend_start = 1;
+	}
+	my $pos_fend_end   = $end;
+
+	if ( $pos_fend_start < $start ) {  	#Fends may be longer than some small restriction fragments, so if necessary trim back the fend
+		$pos_fend_start = $start;
+	}
+
+	my $pos_ten_kbp_start = ceil( $pos_fend_start / 10_000 );
+
+	my $PosPercMapped;
+	if( exists $fends{"$csome\t$pos_ten_kbp_start\t+"}->{$pos_fend_start}->{$pos_fend_end} ){
+		my $mapa_array = $fends{"$csome\t$pos_ten_kbp_start\t+"}->{$pos_fend_start}->{$pos_fend_end};
+		if($$mapa_array[0] + $$mapa_array[1] == 0){    #Prevent division by zero errors
+			$PosPercMapped = 0;
+		}else{
+		 	$PosPercMapped = 100 * $$mapa_array[0] / ($$mapa_array[0] + $$mapa_array[1]);
+		}
+	}else{
+		die "Could not find FEnd { $csome\t$pos_ten_kbp_start\t+ } {$pos_fend_start} {$pos_fend_end} !\n";
+	}
+
+
+	#Determine %Mapability for negative FEnd
+	my $neg_fend_start = $start;
+	my $neg_fend_end   = $start + $length - 1;
+
+	if ( $neg_fend_end > $end ) {    #Fends may be longer than some small restriction fragments, so if necessary trim back the fend
+		$neg_fend_end = $end;
+	}
+
+	my $neg_ten_kbp_start = ceil( $neg_fend_start / 10_000 );
+
+	my $NegPercMapped;
+	if( exists $fends{"$csome\t$neg_ten_kbp_start\t+"}->{$neg_fend_start}->{$neg_fend_end} ){
+		my $mapa_array = $fends{"$csome\t$neg_ten_kbp_start\t+"}->{$neg_fend_start}->{$neg_fend_end};
+		if($$mapa_array[0] + $$mapa_array[1] == 0){    #Prevent division by zero errors
+			$NegPercMapped = 0;
+		}else{
+		 	$NegPercMapped = 100 * $$mapa_array[0] / ($$mapa_array[0] + $$mapa_array[1]);
+		}
+	}else{
+		die "Could not find FEnd { $csome\t$neg_ten_kbp_start\t+ } {$neg_fend_start} {$neg_fend_end} !\n";
+	}
+
+	print MAPA "$line\t$PosPercMapped\t$NegPercMapped\n";
+
+}
+
+close DIGESTGC or die "Could not close filehandle on '$digestGC' : $!";
+close MAPA or die "Could not close filehandle on '$digestGC.mapa.txt' : $!";
+
+
+print "Processing Complete\n";
+
+exit (0);
+
+
+
+##################################################################
+#Subroutines
+##################################################################
+
+################################################
+#Subroutine: ismapped
+#Takes a SAM flag and returns whether a read is 
+#mapped to the reference genome
+#Returns 1 if mapped else 0 for unmapped
+sub ismapped{
+	my $samFlag = $_[0];
+		
+	if($samFlag & 0x4){
+		return 0;    #Unmapped
+	}else{
+		return 1;    #Mapped
+	}
+}
+
+
+
+########################################
+#Subroutine: identify_fends
+#Reads a FEnd/VEnds file and returns a hash of the fends
+#%{chromosome\t10kb_region\tStrand} = {start} -> {end} -> @[0,0]
+#input= (fends_filename, fend_length, number_of_headers_in_FEnd_or_VEnd_file)
+sub identify_fends {
+	my ( $fends_file, $fend_length, $header_rows ) = @_;
+
+	my %fends;
+	open( FENDS, $fends_file ) or die "Could not open $fends_file: $!";
+
+	for ( my $i = 0 ; $i < $header_rows ; $i++ ) {    #Ignore header lines
+		scalar <FENDS>;
+	}
+
+	my $fends_total = 0;
+	my @counter = (0, 0);    #Used to count Mapable / Not Mapable reads
+
+	while (<FENDS>) {
+		chomp;
+		my ( $csome, $start, $end, undef, $fragment_number ) = split(/\t/);
+
+		$fends_total = $fends_total + 2;
+
+		my $pos_fend_start = $end - $fend_length + 1;
+		if ( $pos_fend_start < 0 ) {
+			$pos_fend_start = 0;
+		}
+		my $pos_fend_end   = $end;
+		my $neg_fend_start = $start;
+		my $neg_fend_end   = $start + $fend_length - 1;
+
+		#Fends may be longer than some small restriction fragments, so if necessary trim back the fend
+		if ( $pos_fend_start < $start ) {
+			$pos_fend_start = $start;
+		}
+		if ( $neg_fend_end > $end ) {
+			$neg_fend_end = $end;
+		}
+
+		#Write positive and negative fends into an easily sortable hash
+		#Remember: positive FEnds are for positve reads, and vice-versa
+		#Positive
+		my $pos_ten_kbp_start = ceil( $pos_fend_start / 10_000 );
+		my $pos_ten_kbp_end   = ceil( $pos_fend_end / 10_000 );
+
+		do {
+			$fends{"$csome\t$pos_ten_kbp_start\t\+"}->{$pos_fend_start}->{$pos_fend_end} = [(0,0)];
+			$pos_ten_kbp_start++;
+		} while ( $pos_ten_kbp_start <= $pos_ten_kbp_end );
+
+		#Negative
+		my $neg_ten_kbp_start = ceil( $neg_fend_start / 10_000 );
+		my $neg_ten_kbp_end   = ceil( $neg_fend_end / 10_000 );
+
+		do {
+			$fends{"$csome\t$neg_ten_kbp_start\t\-"}->{$neg_fend_start}->{$neg_fend_end} = [(0,0)];
+			$neg_ten_kbp_start++;
+		} while ( $neg_ten_kbp_start <= $neg_ten_kbp_end );
+
+	}
+	close FENDS or die "Could not open $fends_file: $!";
+
+	return %fends;
+}
+
+
+
+#Subroutine findFend:
+#Receives co-ordinates (chr, pos, strand) and a reference to the fend hash
+#and returns the fend.
+sub findFend {
+
+	my ( $csome, $pos, $strand, $fends_ref ) = @_;
+	my $lookup_region = ceil( $pos / 10_000 );
+
+	if ( exists ${$fends_ref}{"$csome\t$lookup_region\t$strand"} ) {    #Check the region contains a frag
+
+		foreach my $fend_start ( keys %{ ${$fends_ref}{"$csome\t$lookup_region\t$strand"} } ) {
+			foreach my $fend_end ( keys %{ ${$fends_ref}{"$csome\t$lookup_region\t$strand"}->{$fend_start} } ) {
+				if ( ( $pos >= $fend_start ) and ( $pos <= $fend_end ) ) {
+					return "$lookup_region\t$csome\t$fend_start\t$fend_end\t$strand";       #Found fragment
+				}
+			}			
+		}
+	}
+	return 0;                                                           #Position does not map to a fend
+}
+
+

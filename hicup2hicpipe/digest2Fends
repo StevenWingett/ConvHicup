@@ -1,0 +1,133 @@
+#!/usr/bin/perl
+
+#############################################
+#Script to convert modified HiCUP digest
+#Files (with %GC and mapability added) into
+#a FEnds table for hicpipe
+#
+#Modified hicup digest table:
+# Genome:AGC      Restriction_Enzyme1:enzy [A^G]  Restriction_Enzyme2:None        Hicup digester version 0.5.1
+# Chromosome      Fragment_Start_Position Fragment_End_Position   Fragment_Number RE1_Fragment_Number     5'_Restriction_Site     3'_Restriction_Site     Percent_GC      Pos_FEnd_Mapa   Neg_Fend_Mapa
+# GC_GENOME       1       40      1       1       None    Re1     50      100     100
+# GC_GENOME       41      80      2       2       Re1     None    100     0       0
+#
+#
+#
+#hicpipe fends table:
+# fend    frag    chr     coord   valid   frag_len        frag_gc map_score       map_bin
+# 1       2       19      19641   0       6104    0.47    0       1
+# 2       1       19      19640   0       5901    0.545   0       1
+# 3       3       19      25745   0       751     0.44    0       1
+# 4       2       19      25744   0       6104    0.375   0       1
+# 5       4       19      26496   0       7428    0.37    0       1
+# 6       3       19      26495   0       751     0.455   0       1
+# 7       5       19      33924   0       11473   0.355   0       1
+# 8       4       19      33923   0       7428    0.4     0       1
+# 9       6       19      45397   0       533     0.43    0       1
+#############################################
+#(The coordinate is the position of the FEnd adjacent to the cut site).
+
+use strict;
+use warnings;
+use Math::Round;
+
+use Data::Dumper;
+
+die "Please specify ONE modified digest file (with GC and mapability scores) to process.\n" unless scalar @ARGV == 1;
+
+open( IN, '<', $ARGV[0]) or die "Could not read '$ARGV[0]' : $!";
+open( OUT, '>', "$ARGV[0].hicpipe_fends_table.txt") or die "Could not close filehandle on '$ARGV[0].hicpipe_fends_table.txt' : $!";
+scalar <IN>;    #Ignore headers
+scalar <IN>;
+print OUT "fend\tfrag\tchr\tcoord\tvalid\tfrag_len\tfrag_gc\tmap_score\tmap_bin\n";
+
+
+
+#The FEnd order for hicpipe is not quite the same as for hicup, so read in 2 lines
+my $fragA = scalar <IN>;
+chomp $fragA;
+my $fragB;
+#my ($pos_csome, $pos_start, $pos_end, $pos_fragNos, undef, undef, undef, 
+		#$pos_percGC, $pos_posFendMapa, $pos_NegFendMapa) = split (/\t/, $line);
+
+my $fend_nos = 1;
+while(<IN>){
+
+	$fragB = $_;
+	chomp $fragB;
+		
+	print OUT "$fend_nos\t" . convert2hicpipe($fragB, 'NEG') . "\n";
+	$fend_nos++;
+	
+	print OUT "$fend_nos\t" . convert2hicpipe($fragA, 'POS') . "\n";
+	$fend_nos++;
+
+	$fragA = $fragB;
+	
+	#my ($pos_csome, $pos_start, $pos_end, $pos_fragNos, $pos_percGC, $pos_posFendMapa, $pos_NegFendMapa) = 
+		#($neg_csome, $neg_start, $neg_end, $neg_fragNos, $neg_percGC, $neg_posFendMapa, $neg_NegFendMapa);
+			
+}
+
+
+close IN or die "Could not close filehandle on '$ARGV[0]' : $!";
+
+
+print "Processing complete.\n";
+
+exit (0);
+
+
+#########################################################################
+#Subroutines
+#########################################################################
+
+#Takes a line from the hicup digest file (with GC and mapability data) and
+#creates a line in the hicpipe fend format. Also takes 'NEG' or 'POS' as
+#an argument to determine whether it is 
+
+sub convert2hicpipe{
+
+	my ($line, $posOrNeg) = @_;
+	my ($csome, $start, $end, $fragNos, undef, undef, undef, $gc, $posFendMapa, $NegFendMapa) = split (/\t/, $line);
+	
+	#Values to calculate
+	my $coord;
+	my $fragLen;
+	my $mapa;
+	my $valid;
+	my $map_bin;
+	
+	$posOrNeg eq 'POS' ? $coord = $start : $coord = $end;
+	
+	$posOrNeg eq 'POS' ? $mapa = $posFendMapa : $mapa = $NegFendMapa;	
+	$mapa = nearest(0.00001, ($mapa/100) );    #Proportion not percentage
+	
+	$mapa < 0.5 ? $valid = 0 : $valid = 1;
+	
+	$fragLen = $end - $start + 1;
+	
+	$gc = nearest(0.001, ($gc / 100) );    #Proportion not percentage
+	
+	#A few inconsistencies here, but this is how the FEnds appears to be filtered.
+	if($mapa <= 0.6){
+		$map_bin = 1;
+	}elsif($mapa <= 0.7){
+		$map_bin = 2;
+	}elsif( $mapa <= 0.8){
+		$map_bin = 3;
+	}elsif($mapa < 0.9){
+		$map_bin = 4;
+	}else{
+		$map_bin = 5;
+	}
+	
+	return join( "\t", ($fragNos, $csome, $coord, $valid, $fragLen, $gc, $mapa, $map_bin) );
+}
+
+
+
+
+
+
+

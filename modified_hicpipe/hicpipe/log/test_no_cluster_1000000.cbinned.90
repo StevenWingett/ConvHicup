@@ -1,0 +1,17 @@
+hostname: rocks1.babraham.ac.uk
+command: /bi/scratch/wingetts/hicpipe/bin/model_integrate /bi/scratch/wingetts/hicpipe/output/test_no_cluster/test_no_cluster_1000000.cbinned tmp/test_no_cluster_1000000.cbinned.90 0 0 close_cis 2e+07 0.000495175829270842 3 map_bin 5 /bi/scratch/wingetts/hicpipe/output/test_no_cluster/test_no_cluster_1000000_map_bin.f frag_gc_bin 20 /bi/scratch/wingetts/hicpipe/output/test_no_cluster/test_no_cluster_1000000_frag_gc_bin.f frag_len_bin 20 /bi/scratch/wingetts/hicpipe/output/test_no_cluster/test_no_cluster_1000000_frag_len_bin.f 1 coord_bin 64 76 1 coord_bin 178 190
+sleeping 9 before command ...
+sleep done, running command
+Prior: 0.000495176
+Filter: close_cis, cis threshold: 2e+07
+M0: map_bin, /bi/scratch/wingetts/hicpipe/output/test_no_cluster/test_no_cluster_1000000_map_bin.f, dim=5
+M1: frag_gc_bin, /bi/scratch/wingetts/hicpipe/output/test_no_cluster/test_no_cluster_1000000_frag_gc_bin.f, dim=20
+M2: frag_len_bin, /bi/scratch/wingetts/hicpipe/output/test_no_cluster/test_no_cluster_1000000_frag_len_bin.f, dim=20
+Output bin X0: coord_bin, 64-76
+Output bin Y0: coord_bin, 178-190
+Y axis limited: from fend 0, to fend 0
+Reading fends into memory ...
+Traversing all fend pairs, number of bins: 169 bins
+100/169 (59.2%)
+169/169 (100.0%)
+done

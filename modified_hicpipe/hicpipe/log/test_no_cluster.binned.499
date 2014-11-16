@@ -1,0 +1,56 @@
+hostname: rocks1.babraham.ac.uk
+command: /bi/scratch/wingetts/hicpipe/bin/model_integrate /bi/scratch/wingetts/hicpipe/output/test_no_cluster/test_no_cluster.binned tmp/test_no_cluster.binned.499 0 0 trans 1e+06 1 0 3 map_bin 4 5 frag_gc_bin 1 7 frag_len_bin 1 7 3 map_bin 3 3 frag_gc_bin 8 13 frag_len_bin 1 7
+sleeping 4 before command ...
+sleep done, running command
+Prior: 1
+Filter: trans, cis threshold: 1e+06
+No model functions
+Output bin X0: map_bin, 4-5
+Output bin X1: frag_gc_bin, 1-7
+Output bin X2: frag_len_bin, 1-7
+Output bin Y0: map_bin, 3-3
+Output bin Y1: frag_gc_bin, 8-13
+Output bin Y2: frag_len_bin, 1-7
+Y axis limited: from fend 0, to fend 0
+Reading fends into memory ...
+Traversing all fend pairs, number of bins: 4116 bins
+100/4116 (2.4%)
+200/4116 (4.9%)
+300/4116 (7.3%)
+400/4116 (9.7%)
+500/4116 (12.1%)
+600/4116 (14.6%)
+700/4116 (17.0%)
+800/4116 (19.4%)
+900/4116 (21.9%)
+1000/4116 (24.3%)
+1100/4116 (26.7%)
+1200/4116 (29.2%)
+1300/4116 (31.6%)
+1400/4116 (34.0%)
+1500/4116 (36.4%)
+1600/4116 (38.9%)
+1700/4116 (41.3%)
+1800/4116 (43.7%)
+1900/4116 (46.2%)
+2000/4116 (48.6%)
+2100/4116 (51.0%)
+2200/4116 (53.4%)
+2300/4116 (55.9%)
+2400/4116 (58.3%)
+2500/4116 (60.7%)
+2600/4116 (63.2%)
+2700/4116 (65.6%)
+2800/4116 (68.0%)
+2900/4116 (70.5%)
+3000/4116 (72.9%)
+3100/4116 (75.3%)
+3200/4116 (77.7%)
+3300/4116 (80.2%)
+3400/4116 (82.6%)
+3500/4116 (85.0%)
+3600/4116 (87.5%)
+3700/4116 (89.9%)
+3800/4116 (92.3%)
+3864/4116 (93.9%)
+done

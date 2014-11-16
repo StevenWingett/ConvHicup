@@ -49,8 +49,6 @@ my %summaryCounter;
 my @summaryCategories = qw( Virtual_Reads_Processed Virtual_Read_Maps_Found_in_FEnd
 						Virtual_Read_Unmapped_Found_in_FEnd Virtual_Read_Maps_Not_in_FEnd 
 						Virtual_Read_Unmapped_not_in_FEnd );
-
-						
 						
 foreach my $category (@summaryCategories){
 	print SUMMARY "\t$category";
@@ -101,7 +99,7 @@ while(<VIRTUAL>){
 	}
 }
 
-print Dumper \%fends;
+#print Dumper \%fends;
 
 close VIRTUAL or die "Could not close filehandle on $ARGV[0] : $!";
 
@@ -166,15 +164,15 @@ while(<DIGESTGC>){
 	my $neg_ten_kbp_start = ceil( $neg_fend_start / 10_000 );
 
 	my $NegPercMapped;
-	if( exists $fends{"$csome\t$neg_ten_kbp_start\t+"}->{$neg_fend_start}->{$neg_fend_end} ){
-		my $mapa_array = $fends{"$csome\t$neg_ten_kbp_start\t+"}->{$neg_fend_start}->{$neg_fend_end};
+	if( exists $fends{"$csome\t$neg_ten_kbp_start\t-"}->{$neg_fend_start}->{$neg_fend_end} ){
+		my $mapa_array = $fends{"$csome\t$neg_ten_kbp_start\t-"}->{$neg_fend_start}->{$neg_fend_end};
 		if($$mapa_array[0] + $$mapa_array[1] == 0){    #Prevent division by zero errors
 			$NegPercMapped = 0;
 		}else{
 		 	$NegPercMapped = 100 * $$mapa_array[0] / ($$mapa_array[0] + $$mapa_array[1]);
 		}
 	}else{
-		die "Could not find FEnd { $csome\t$neg_ten_kbp_start\t+ } {$neg_fend_start} {$neg_fend_end} !\n";
+		die "Could not find FEnd { $csome\t$neg_ten_kbp_start\t- } {$neg_fend_start} {$neg_fend_end} !\n";
 	}
 
 	print MAPA "$line\t$PosPercMapped\t$NegPercMapped\n";

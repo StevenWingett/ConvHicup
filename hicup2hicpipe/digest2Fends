@@ -41,14 +41,10 @@ scalar <IN>;    #Ignore headers
 scalar <IN>;
 print OUT "fend\tfrag\tchr\tcoord\tvalid\tfrag_len\tfrag_gc\tmap_score\tmap_bin\n";
 
-
-
 #The FEnd order for hicpipe is not quite the same as for hicup, so read in 2 lines
 my $fragA = scalar <IN>;
 chomp $fragA;
 my $fragB;
-#my ($pos_csome, $pos_start, $pos_end, $pos_fragNos, undef, undef, undef, 
-		#$pos_percGC, $pos_posFendMapa, $pos_NegFendMapa) = split (/\t/, $line);
 
 my $fend_nos = 1;
 while(<IN>){
@@ -63,15 +59,10 @@ while(<IN>){
 	$fend_nos++;
 
 	$fragA = $fragB;
-	
-	#my ($pos_csome, $pos_start, $pos_end, $pos_fragNos, $pos_percGC, $pos_posFendMapa, $pos_NegFendMapa) = 
-		#($neg_csome, $neg_start, $neg_end, $neg_fragNos, $neg_percGC, $neg_posFendMapa, $neg_NegFendMapa);
-			
 }
 
 
 close IN or die "Could not close filehandle on '$ARGV[0]' : $!";
-
 
 print "Processing complete.\n";
 
@@ -84,8 +75,7 @@ exit (0);
 
 #Takes a line from the hicup digest file (with GC and mapability data) and
 #creates a line in the hicpipe fend format. Also takes 'NEG' or 'POS' as
-#an argument to determine whether it is 
-
+#an argument to determine whether it is a negative or positive FEnd
 sub convert2hicpipe{
 
 	my ($line, $posOrNeg) = @_;
@@ -98,18 +88,18 @@ sub convert2hicpipe{
 	my $valid;
 	my $map_bin;
 	
-	$posOrNeg eq 'POS' ? $coord = $start : $coord = $end;
+	$coord = ($posOrNeg eq 'POS') ? $end : $start;    #Positive FEnds have reads 'pointing fowards' at the end of rest. frags.
 	
-	$posOrNeg eq 'POS' ? $mapa = $posFendMapa : $mapa = $NegFendMapa;	
+	$mapa = ($posOrNeg eq 'POS') ? $posFendMapa : $NegFendMapa;	
 	$mapa = nearest(0.00001, ($mapa/100) );    #Proportion not percentage
 	
-	$mapa < 0.5 ? $valid = 0 : $valid = 1;
+	$valid = ($mapa < 0.5) ? 0 : 1;
 	
 	$fragLen = $end - $start + 1;
 	
 	$gc = nearest(0.001, ($gc / 100) );    #Proportion not percentage
 	
-	#A few inconsistencies here, but this is how the FEnds appears to be filtered.
+	#A few inconsistencies here, but this is how the FEnds appears to be filtered in Tanay input table format
 	if($mapa <= 0.6){
 		$map_bin = 1;
 	}elsif($mapa <= 0.7){

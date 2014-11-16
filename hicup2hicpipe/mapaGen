@@ -26,7 +26,7 @@ my $config_result = GetOptions(
 
 die "Please specify ONE input fasta file" unless (@ARGV == 1);
 
-$bowtie = '/bi/apps/bowtie/1.1.0/bowtie' unless defined $bowtie;
+$bowtie = '/bi/apps/bowtie/0.12.9/bowtie' unless defined $bowtie;
 $index = '/bi/scratch/Genomes/Mouse/NCBIM37/Mus_musculus.NCBIM37' unless defined $index;
 
 print "Using Bowtie at: $bowtie\n";

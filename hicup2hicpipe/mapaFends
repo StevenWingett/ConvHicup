@@ -18,12 +18,20 @@ use Data::Dumper;
 
 #Option variables
 my $digestGC;
+my $help;
 my $length;
 
 my $config_result = GetOptions(
 	"digest=s" => \$digestGC,
+	"help" => \$help,
 	"length=i" => \$length
 );
+
+
+if ($help or !@ARGV) {
+    print while (<DATA>);
+    exit(0);
+}
 
 #Check user input
 die "Please specify ONE --digest file to process.\n" unless defined $digestGC;
@@ -299,4 +307,26 @@ sub findFend {
 	return 0;                                                           #Position does not map to a fend
 }
 
+
+
+
+__DATA__
+
+SYNOPSIS
+
+Calculates the mapability of each fragment end (FEnd)
+
+mapaFends [OPTIONS]... [VIRTUAL READS FILE]
+
+FUNCTION
+
+Takes a HiCUP digest file (ideally with GC fragment content appended by 'calcGC'
+script and calculates the FEnd positions, and then determines the percentage of 
+virtual reads successfully mapping to each FEnd.
+
+COMMAND LINE OPTIONS
+
+--digest       HiCUP digest file
+--help         Print help message andd exit
+--length       Length (bps) of FEnd (default 500)
 

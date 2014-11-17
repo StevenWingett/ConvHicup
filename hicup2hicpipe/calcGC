@@ -15,12 +15,17 @@ use Data::Dumper;
 
 #Option variables
 my $digest;
+my $help;
 
 my $config_result = GetOptions(
-	"digest=s" => \$digest
+	"digest=s" => \$digest,
+	"help" => \$help
 );
 
-die "Please specify files to process.\n" unless @ARGV;
+if ($help or !@ARGV) {
+    print while (<DATA>);
+    exit(0);
+}
 
 die "Please specificy a HiCUP digest file\n" unless defined $digest;
 die "Digest file '$digest' does not exit\n" unless (-e $digest);
@@ -97,8 +102,6 @@ exit (0);
 
 
 
-
-
 #################################################################
 #Subroutines
 #################################################################
@@ -118,3 +121,25 @@ sub deduplicate_array {
     return @uniques_array;
 }
 
+
+
+
+
+__DATA__
+
+SYNOPSIS
+
+Calculates the %GC content of each restriction fragment
+
+calcGC [OPTIONS]... [FASTA FILES]
+
+FUNCTION
+
+Takes FASTA genome files and a HiCUP digest file and calculates the %GC 
+content of each restriction fragment, which is reported by appending
+this value to each line in the HiCUP digest file.
+
+COMMAND LINE OPTIONS
+
+--digest       HiCUP digest file
+--help         Print help message and exit

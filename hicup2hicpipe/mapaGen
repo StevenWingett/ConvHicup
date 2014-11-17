@@ -24,6 +24,11 @@ my $config_result = GetOptions(
 );
 
 
+if ($help or !@ARGV) {
+    print while (<DATA>);
+    exit(0);
+}
+
 die "Please specify ONE input fasta file" unless (@ARGV == 1);
 
 $bowtie = '/bi/apps/bowtie/0.12.9/bowtie' unless defined $bowtie;
@@ -47,8 +52,23 @@ exit(0);
 
 
 
+__DATA__
 
+SYNOPSIS
 
+Takes the virtual FASTA reads files and maps to the relevant reference genome
 
+mapaGen [OPTIONS]... [VIRTUAL READ FILES]
 
+FUNCTION
 
+Maps the virtual reads file to a specified reference genome using bowtie, with
+options similar to that used by HiCUP (HiCUP maps FASTQ files, not FASTA).
+Bowtie parameters: -m 1 -n 1 --best -p 4 -f --sam
+
+COMMAND LINE OPTIONS
+
+--bowtie       Path to Bowtie (default: /bi/apps/bowtie/0.12.9/bowtie)
+--help         Print help message and exit
+--index        Path to Bowtie index files (including basename):
+               /bi/scratch/Genomes/Mouse/NCBIM37/Mus_musculus.NCBIM37

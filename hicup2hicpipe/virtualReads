@@ -16,25 +16,32 @@ use Data::Dumper;
 #Option variables
 my $length;
 my $offset;
+my $help;
 
 my $config_result = GetOptions(
+	"help" => \$help, 
 	"length=i" => \$length,
 	"offset=i" => \$offset
 );
 
-die "Please specify files to process.\n" unless @ARGV;
+if ($help or !@ARGV) {
+    print while (<DATA>);
+    exit(0);
+}
 
 $length = 50 unless defined $length;
 $offset = 10 unless defined $offset;
+
+if($length < 1 or $offset < 1){
+	die "Options --length and --offset need to be at least 1bp.\n";
+}
+
 
 print "Virtual read length set to $length bps\n";
 print "Offset: $offset bps\n";
 
 my @files = deduplicate_array(@ARGV);
 my %genome;   #%{chromosome} = sequence
-
-
-
 
 
 #Read in the genome
@@ -56,7 +63,7 @@ foreach my $file (@files){
 
 		if ( $line =~ /^\>/ ) {    #Process FASTA header to determine chromosome
 			unless($line =~ /^\>(\S+).*$/){
-				die "File '$file' is not in FASTA format at line:\n$line\nA chromosome name is reqired immediately after '>' (blank spaces are not allowed)\nFor more details on FASTA format go to:\nhttp://en.wikipedia.org/wiki/FASTA_format\n";
+				die "File '$file' is not in FASTA format at line:\n$line\nA chromosome name is required immediately after '>' (blank spaces are not allowed)\nFor more details on FASTA format go to:\nhttp://en.wikipedia.org/wiki/FASTA_format\n";
 			}
 			
 			$csome = $1;
@@ -134,3 +141,29 @@ sub deduplicate_array {
     my @uniques_array = keys %uniques;
     return @uniques_array;
 }
+
+
+
+__DATA__
+
+SYNOPSIS
+
+Generate virtual FASTA reads from a specifed reference genome
+
+virtualReads [OPTIONS]... [FASTA FILES]
+
+FUNCTION
+
+Takes FASTA files of a reference and creates virtual reads of a pre-defined length
+(reads at the very end of chromosmes may be truncated).
+
+The FASTA header for each read records the position in the reference genome from 
+where the  virtual read was obtained.
+
+COMMAND LINE OPTIONS
+
+--help         Print help message and exit
+--length       Length (bps) of virtual reads (default 50)
+--offset       Distance (bps) between start of adjacent reads (default 10)
+               If offset is the same as length then reads will be tiled along
+               the genome 

@@ -2,10 +2,23 @@
 
 use strict;
 use warnings;
+use Getopt::Long;
 
 ##########################################################################################################################################
 #Perl script to convert Hi-C data in paired-end SAM/BAM format to Hicpipe input format
 ########################################################################################################################################## 
+
+my $help;
+my $config_result = GetOptions(
+  "help" => \$help, 
+);
+
+
+if ($help or !@ARGV) {
+    print while (<DATA>);
+    exit(0);
+}
+
 
 #Pass file names as command-line arguments
 my @files = @ARGV;
@@ -70,4 +83,22 @@ foreach my $file (@files){
 
 print "Processing complete\n";
 
-exit;
+exit (0);
+
+
+
+__DATA__
+
+SYNOPSIS
+
+Create Hicpipe input RAW data format file
+
+hicup2hicpipe [OPTIONS]... [HiCUP OUTPUT SAM/BAM file]
+
+FUNCTION
+
+Converts Hi-C data in paired-end HiCUP SAM/BAM format to Hicpipe input format
+
+COMMAND LINE OPTIONS
+
+--help         Print help message and exit

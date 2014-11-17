@@ -30,8 +30,19 @@
 use strict;
 use warnings;
 use Math::Round;
+use Getopt::Long;
 
 use Data::Dumper;
+
+my $help;
+my $config_result = GetOptions(
+	"help" => \$help
+);
+
+if ($help or !@ARGV) {
+    print while (<DATA>);
+    exit(0);
+}
 
 die "Please specify ONE modified digest file (with GC and mapability scores) to process.\n" unless scalar @ARGV == 1;
 
@@ -116,8 +127,19 @@ sub convert2hicpipe{
 }
 
 
+__DATA__
 
+SYNOPSIS
 
+Generate a fragment ends (FEnds) table for Hicpipe
 
+digest2Fends [OPTIONS]... [MODIFIED HICUP DIGEST FILE]
 
+FUNCTION
 
+Takes a modified HiCUP digest file (with %GC and %mapability values appended by 'calcGC'
+and 'mapaFends' respectively and creates a FEnds table in a format compatible with Hicpipe.
+
+COMMAND LINE OPTIONS
+
+--help         Print help message and exit

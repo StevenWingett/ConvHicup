@@ -1,0 +1,243 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Getopt::Long;
+use FindBin '$Bin';
+use lib $Bin;
+use File::Basename;
+use Cwd;
+
+
+use Data::Dumper;
+
+
+###############################################################
+#hicpipe: wrapper for the Tanay hicpipe pipeline
+###############################################################
+
+
+##########################################################
+#Get user-supplied parameters
+#Option variables
+my $email;
+my $help;
+
+my $config_result = GetOptions(    #Stores parameters
+	"email=s"   => \$email,
+	"help"   => \$help,
+);
+
+die "Command line options need to be in the correct format (hicpipe -help for more details).\n" unless ($config_result);
+
+
+########################
+#Check input ok
+if ($help) {
+    print while (<DATA>);
+    exit(0);
+}
+
+unless(@ARGV){
+	print while (<DATA>);
+    exit(0);
+}
+
+my $listFile;
+if(scalar @ARGV == 1){
+	$listFile = $ARGV[0]
+}else{
+	die "Specify only ONE list file (see --help for more details).\n";
+}
+
+$email = 'steven.wingett@babraham.ac.uk' unless defined $email;
+
+
+########################
+#Process list file
+#File has format
+#Filename (possibly with path) of RAW file \t FEnds file to use
+my %files;    # %{[path]/file} = FEnds file
+if(-e $listFile){
+	open(LISTFILE, '<', $listFile) or die "Could not open $listFile : $!";
+	while(<LISTFILE>){
+		my $line = $_;
+		chomp $line;
+		
+		next if($line =~ /^\s*$/);
+		
+		my ($rawFile, $fendFile) = split(/\t/, $line);
+
+		foreach my $inputFile ($rawFile, $fendFile){
+			$inputFile =~ s/^\s+//;
+        	$inputFile =~ s/\s+$//;       #Remove starting/trailing white spaces
+        }
+
+		$files{$rawFile} = $fendFile;
+	}	
+	close LISTFILE or die "Could not close filehandle 'LISTFILE' on file '$listFile' : $!";
+}
+
+#print Dumper \%files;
+
+checkFilesOk();
+
+
+
+#print Dumper \@allFiles;
+
+
+
+##############################
+#Read in template file
+my $templateText;
+open(TEMPLATE, '<', "$Bin/input/template.cfg") or die "Could not open '$Bin/input/template.cfg': $!";
+while(<TEMPLATE>){
+		my $line = $_;		
+		next if($line =~ /^\s*$/);
+		$templateText .= $line;
+}
+close TEMPLATE or die "Could not close filehandle 'TEMPLATE' on file '$Bin/input/template.cfg' : $!";
+
+print $templateText;
+
+
+
+##############################################
+#Create relevant directories and config files
+foreach my $fileAndPath (keys %files){
+	my $path = dirname($fileAndPath);
+	$path = getcwd if ($path eq '.');
+	my $filename = basename($fileAndPath);
+
+	print "$path \t $filename";
+
+
+	!system("mkdir $Bin/input/$filename") or die "Could not create directory '$Bin/input/$filename' : $!";    #Create directory
+	!system("ln -s $path/$filename $Bin/input/$filename/$filename") 
+		or die "Could not create symbolic link to '$path/$filename' at '$Bin/input/$filename/$filename' : $!";    #Create linke to RAW file
+
+	
+
+}
+
+
+############################################
+#Send jobs to cluster
+
+
+
+
+
+
+
+
+#######################################################################
+#Subroutines
+######################################################################
+
+######################################################################
+#sub: checkFilesOk
+#Check input files exist and no RAW filename duplicates
+sub checkFilesOk{
+	my @allFiles = dedupHash(%files);
+	die "Please add files or change configuration.\n" unless check_files_exist (\@allFiles, 'EXISTS');
+
+	#Check that RAW filenames are not duplicated
+	my %filenamesOnly;
+	foreach my $fileAndPath (keys %files){
+		my $filename = basename($fileAndPath);
+		$filenamesOnly{$filename}++;
+	}
+
+	my $parameters_ok = 1;
+	foreach my $file (keys %filenamesOnly){
+		if ($filenamesOnly{$file} > 1){
+			warn '$file occurs more than once\n';
+			$parameters_ok = 0;
+		}
+	}
+
+	die "Please adjust configuration.\n" unless ($parameters_ok);
+
+}
+
+
+##################################################################
+#Sub: dedupHash
+#Takes a hash and returns an array with all terms
+#de-duplicated
+sub dedupHash {
+    my @array = @_;
+    my %uniques;
+
+    foreach (@array) {
+        $uniques{$_} = '';
+    }
+    my @uniques_array = keys %uniques;
+    return @uniques_array;
+}
+
+
+
+###################################################################
+#check_files_exist:
+#Takes a reference to an array containing paths to filenames and verifies they exist
+#Warns of files that do no exit. Returns 1 if all files exist but 0 if this is not
+#the case.
+#
+#Also, takes a second argument:
+#$_[1] should be 'EXISTS' or 'NOT_EXISTS'
+#If 'NOT_EXIST' warns if file already exists.  Returns '1' if none of the
+#files exists and '0' if one or multiple files already exist
+sub check_files_exist {
+    my $files      = $_[0];    #Reference to array
+    my $check_for  = $_[1];
+    my $all_exist  = 1;
+    my $not_exists = 1;
+
+    if ( $check_for eq 'EXISTS' ) {
+        foreach my $file (@$files) {
+            unless ( -e $file ) {
+                warn "$file does not exist\n";
+                $all_exist = 0;
+            }
+        }
+    } elsif ( $check_for eq 'NOT_EXISTS' ) {
+        foreach my $file (@$files) {
+            if ( -e $file ) {
+                warn "$file already exists\n";
+                $not_exists = 0;
+            }
+        }
+    } else {
+        die "Subroutine 'check_files_exist' requires argument 'EXISTS' or 'NOT_EXISTS'.\n";
+    }
+
+    if ( $check_for eq 'EXISTS' ) {
+        return $all_exist;
+    } else {
+        return $not_exists;
+    }
+}
+
+
+
+
+__DATA__
+
+This wrapper sends hicpipe jobs to the cluster in an automated way
+
+SYNOPSIS
+
+hicpipe [OPTIONS]... [LIST FILE]...
+
+FUNCTION
+
+TODO
+
+COMMAND LINE OPTIONS
+
+--email          Address to email cluster output 
+                 (default: steven.wingett@babraham.ac.uk)
+--help	         Print program help and exit

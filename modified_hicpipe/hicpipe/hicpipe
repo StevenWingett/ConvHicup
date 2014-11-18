@@ -104,7 +104,7 @@ print $templateText;
 
 
 ##############################################
-#Create relevant directories and config files
+#Create relevant directories and config files and links to input files
 foreach my $fileAndPath (keys %files){
 	my $path = dirname($fileAndPath);
 	$path = getcwd if ($path eq '.');
@@ -117,8 +117,17 @@ foreach my $fileAndPath (keys %files){
 	!system("ln -s $path/$filename $Bin/input/$filename/$filename") 
 		or die "Could not create symbolic link to '$path/$filename' at '$Bin/input/$filename/$filename' : $!";    #Create linke to RAW file
 
-	
+	#Create link to appropriate FEnds file 
+	my $fendsFileAndPath = $files{$fileAndPath};
+	my $fendsPath = dirname($fendsFileAndPath);
+	$fendsPath = getcwd if ($fendsPath eq '.');
+	my $fendsFile = basename($fendsFileAndPath);
 
+	!system("ln -s $fendsPath/$fendsFile $Bin/input/$filename/$fendsFile")
+		or die "Could not create symbolic link to '$fendsPath/$fendsFile' at '$Bin/input/$filename/$fendsFile' : $!";
+
+	createConfig($templateText, $fendsFile, $filename);
+	
 }
 
 
@@ -135,6 +144,39 @@ foreach my $fileAndPath (keys %files){
 #######################################################################
 #Subroutines
 ######################################################################
+
+
+# Sub: createConfig
+# Creates an appropriate config file in the relevant directory
+# Takes the template text, fends filename + path and RAW filename + path
+sub createConfig{
+	my ($template, $fendsFile, $rawFile) = @_;
+
+	my $fendsFileAndPath = "input/$rawFile/$fendsFile";    #Newly created symbolic link
+	my $rawFileAndPath = "input/$rawFile/$rawFile";    #Newly created symbolic link
+
+	#Edit config file
+	$template =~ s/\[FENDS_FILE_AND_PATH\]/$fendsFileAndPath/;
+	$template =~ s/\[RAW_FILE_AND_PATH\]/$rawFileAndPath/;
+	$template =~ s/\[RAW_FILE\]/$rawFile/;
+	$template =~ s/\[DATASET_TITLE\]/"$rawFile.hicpipe"/;
+
+	#Write out config file
+	my $configName = "$rawFileAndPath.cfg";
+	open(EDITED_TEMPLATE, '>', $configName ) or die "Could not write to $configName : $!";
+	print EDITED_TEMPLATE $template;
+	close EDITED_TEMPLATE or die "Could not close filehandle 'EDITED_TEMPLATE' on file '$configName'  : $!";
+
+}
+
+
+
+
+
+
+
+
+
 
 ######################################################################
 #sub: checkFilesOk

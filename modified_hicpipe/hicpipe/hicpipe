@@ -99,9 +99,6 @@ while(<TEMPLATE>){
 }
 close TEMPLATE or die "Could not close filehandle 'TEMPLATE' on file '$Bin/input/template.cfg' : $!";
 
-print $templateText;
-
-
 
 ##############################################
 #Create relevant directories and config files and links to input files
@@ -109,9 +106,6 @@ foreach my $fileAndPath (keys %files){
 	my $path = dirname($fileAndPath);
 	$path = getcwd if ($path eq '.');
 	my $filename = basename($fileAndPath);
-
-	print "$path \t $filename";
-
 
 	!system("mkdir $Bin/input/$filename") or die "Could not create directory '$Bin/input/$filename' : $!";    #Create directory
 	!system("ln -s $path/$filename $Bin/input/$filename/$filename") 
@@ -133,10 +127,26 @@ foreach my $fileAndPath (keys %files){
 
 ############################################
 #Send jobs to cluster
+open(LOG, '>', 'hicpipe_wrapper_log.txt') or die "Could not write to 'hicpipe_wrapper_log.txt' : $!";    #Create a log file
 
+foreach my $fileAndPath (keys %files){
+	#%> make CFG=input/Test/test_cluster.cfg
+	my $rawFile = basename($fileAndPath);
+	my $configFileAndPath = "input/$rawFile/$rawFile.cfg";
+	my $jobname = "hicpipe.$rawFile";
 
+	my $command = "make CFG=$configFileAndPath";
+	my $clusterCommand = "echo \"$command\" | qsub -V -cwd -l vf=4G -pe orte 1 -o $jobname.out -j y -N $jobname -m eas -M $email";
 
+	print LOG "$clusterCommand\n";
+	!system("$clusterCommand") or die "Could not run '$command' : $!";
+}
 
+close LOG or die "Could not close 'hicpipe_wrapper_log.txt : $!";
+
+print "Processing complete (i.e. all jobs submitted).\n";
+
+exit (0);
 
 
 

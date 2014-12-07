@@ -2,8 +2,7 @@
 
 ###################################################
 #Takes FASTA genome files and a HiCUP digest file
-#and calculate the %GC content of each restriction
-#fragment 
+#and calculate the %GC content of each 200bp FEnd
 ###################################################
 
 use strict;
@@ -75,7 +74,7 @@ open( OUT, '>', "$digest.GC.txt") or die "Could not write to '$digest.GC.txt' : 
 my $header = scalar <DIGEST>;
 $header .= scalar <DIGEST>;
 chomp $header;
-$header .= "\tPercent_GC\n";
+$header .= "\tPosFend_Percent_GC\tNegFend_Percent_GC\n";
 print OUT $header;
 
 while(<DIGEST>){
@@ -87,10 +86,26 @@ while(<DIGEST>){
 
 	my $seqLength = $end - $start + 1;
 	my $seq = uc substr($genome{$csome}, $start - 1, $seqLength);    #Offset 0-based for substr
-	my $countGC = $seq =~ tr/GC//;
-	my $percGC = 100 * $countGC / $seqLength;
+	
+	my ($posFend, $negFend, $fendLength);
+	if($seqLength >= 200){    #Need the %GC content of each 200bp FEnd, if frag < 200 bp use whole frag
+		$posFend = substr($seq, -200);
+		$negFend = substr($seq, 0, 200);
+		$fendLength = 200;
+	}else{
+		$posFend = $seq;
+		$negFend = $seq;
+		$fendLength = $seqLength;
+	}
 
-	print OUT "$line\t$percGC\n";
+
+	my $posFendCountGC = $posFend =~ tr/GC//;
+	my $negFendCountGC = $negFend =~ tr/GC//;
+
+	my $posFendPercGC = 100 * $posFendCountGC / $fendLength;
+	my $negFendPercGC = 100 * $negFendCountGC / $fendLength;
+
+	print OUT "$line\t$posFendPercGC\t$negFendPercGC\n";
 }
 
 close DIGEST or die "Could not close filehandle 'DIGEST' on file '$digest' : $!";
@@ -129,15 +144,16 @@ __DATA__
 
 SYNOPSIS
 
-Calculates the %GC content of each restriction fragment
+Calculates the %GC content of each FEnd
 
 calcGC [OPTIONS]... [FASTA FILES]
 
 FUNCTION
 
 Takes FASTA genome files and a HiCUP digest file and calculates the %GC 
-content of each restriction fragment, which is reported by appending
-this value to each line in the HiCUP digest file.
+content of each 200bp FEnd, which is reported by appending this value to 
+each line in the HiCUP digest file. If the FEnd < 200bps, the %GC content
+of the whole restriction fragment is calculated.
 
 COMMAND LINE OPTIONS
 

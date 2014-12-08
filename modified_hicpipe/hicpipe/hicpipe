@@ -20,16 +20,19 @@ use Data::Dumper;
 ##########################################################
 #Get user-supplied parameters
 #Option variables
+my $bin_list;
 my $email;
 my $help;
 
 my $config_result = GetOptions(    #Stores parameters
+	"bin=s" =>	\$bin_list,    #Comma separated list
 	"email=s"   => \$email,
 	"help"   => \$help,
 );
 
 die "Command line options need to be in the correct format (hicpipe -help for more details).\n" unless ($config_result);
 
+my @bin_sizes;
 
 ########################
 #Check input ok
@@ -48,6 +51,13 @@ if(scalar @ARGV == 1){
 	$listFile = $ARGV[0]
 }else{
 	die "Specify only ONE list file (see --help for more details).\n";
+}
+
+if(defined $bin_list){
+	die "Option --bin needs to be a comma-separated list of integers.\n" unless $bin_list =~ /^[\d+,*]+$/;
+	@bin_sizes = split(/,/, $bin_list);
+}else{
+	$bin_sizes[0] = 1_000_000;
 }
 
 $email = 'steven.wingett@babraham.ac.uk' unless defined $email;
@@ -107,20 +117,29 @@ foreach my $fileAndPath (keys %files){
 	$path = getcwd if ($path eq '.');
 	my $filename = basename($fileAndPath);
 
-	!system("mkdir $Bin/input/$filename") or die "Could not create directory '$Bin/input/$filename' : $!";    #Create directory
-	!system("ln -s $path/$filename $Bin/input/$filename/$filename") 
-		or die "Could not create symbolic link to '$path/$filename' at '$Bin/input/$filename/$filename' : $!";    #Create linke to RAW file
+	foreach my $bin_size (@bin_sizes){
 
-	#Create link to appropriate FEnds file 
-	my $fendsFileAndPath = $files{$fileAndPath};
-	my $fendsPath = dirname($fendsFileAndPath);
-	$fendsPath = getcwd if ($fendsPath eq '.');
-	my $fendsFile = basename($fendsFileAndPath);
+		unless(-d "$Bin/input/$bin_size"){    
+			!system("mkdir $Bin/input/$bin_size") or die "Could not create directory '$Bin/input/$bin_size' : $!";    #Create directory
+		}
 
-	!system("ln -s $fendsPath/$fendsFile $Bin/input/$filename/$fendsFile")
-		or die "Could not create symbolic link to '$fendsPath/$fendsFile' at '$Bin/input/$filename/$fendsFile' : $!";
+		!system("mkdir $Bin/input/$bin_size/$filename") or die "Could not create directory '$Bin/input/$bin_size/$filename' : $!";    #Create directory
+		
+		!system("ln -s $path/$filename $Bin/input/$bin_size/$filename/$filename") 
+			or die "Could not create symbolic link to '$path/$filename' names '$Bin/input/$bin_size/$filename/$filename' : $!";    #Create linke to RAW file
 
-	createConfig($templateText, $fendsFile, $filename);
+		#Create link to appropriate FEnds file 
+		my $fendsFileAndPath = $files{$fileAndPath};
+		my $fendsPath = dirname($fendsFileAndPath);
+		$fendsPath = getcwd if ($fendsPath eq '.');
+		my $fendsFile = basename($fendsFileAndPath);
+
+		!system("ln -s $fendsPath/$fendsFile $Bin/input/$bin_size/$filename/$fendsFile")
+			or die "Could not create symbolic link to '$fendsPath/$fendsFile' named '$Bin/input/$bin_size/$filename/$fendsFile' : $!";
+
+		createConfig($templateText, $fendsFile, $filename, $bin_size);
+
+	}
 	
 }
 
@@ -130,16 +149,18 @@ foreach my $fileAndPath (keys %files){
 open(LOG, '>', 'hicpipe_wrapper_log.txt') or die "Could not write to 'hicpipe_wrapper_log.txt' : $!";    #Create a log file
 
 foreach my $fileAndPath (keys %files){
-	#%> make CFG=input/Test/test_cluster.cfg
-	my $rawFile = basename($fileAndPath);
-	my $configFileAndPath = "input/$rawFile/$rawFile.cfg";
-	my $jobname = "hicpipe.$rawFile";
+	foreach my $bin_size (@bin_sizes){
+		my $rawFile = basename($fileAndPath);
+		my $configFileAndPath = "input/$bin_size/$rawFile/$rawFile.cfg";
+		my $jobname = "hicpipe.$rawFile";
 
-	my $command = "make CFG=$configFileAndPath";
-	my $clusterCommand = "echo \"$command\" | qsub -V -cwd -l vf=4G -pe orte 1 -o $jobname.out -j y -N $jobname -m eas -M $email";
+		my $command = "make CFG=$configFileAndPath";
+		my $clusterCommand = "echo \"$command\" | qsub -V -cwd -l vf=4G -pe orte 1 -o $jobname.out -j y -N $jobname -m eas -M $email";
 
-	print LOG "$clusterCommand\n";
-	!system("$clusterCommand") or die "Could not run '$command' : $!";
+		print LOG "$clusterCommand\n";
+		#!system("$command") or die "Could not run '$command' : $!";
+		!system("$clusterCommand") or die "Could not run '$clusterCommand' : $!";
+	}
 }
 
 close LOG or die "Could not close 'hicpipe_wrapper_log.txt : $!";
@@ -160,16 +181,18 @@ exit (0);
 # Creates an appropriate config file in the relevant directory
 # Takes the template text, fends filename + path and RAW filename + path
 sub createConfig{
-	my ($template, $fendsFile, $rawFile) = @_;
+	my ($template, $fendsFile, $rawFile, $bin_size) = @_;
 
-	my $fendsFileAndPath = "input/$rawFile/$fendsFile";    #Newly created symbolic link
-	my $rawFileAndPath = "input/$rawFile/$rawFile";    #Newly created symbolic link
+	my $fendsFileAndPath = "input/$bin_size/$rawFile/$fendsFile";    #Newly created symbolic link
+	my $rawFileAndPath = "input/$bin_size/$rawFile/$rawFile";    #Newly created symbolic link
+	my $outdir = $bin_size . '/' . $rawFile;
 
 	#Edit config file
 	$template =~ s/\[FENDS_FILE_AND_PATH\]/$fendsFileAndPath/;
 	$template =~ s/\[RAW_FILE_AND_PATH\]/$rawFileAndPath/;
-	$template =~ s/\[RAW_FILE\]/$rawFile/;
+	$template =~ s/\[BIN_RAW_FILE\]/$outdir/;
 	$template =~ s/\[DATASET_TITLE\]/"$rawFile.hicpipe"/;
+	$template =~ s/\[BIN_SIZE\]/$bin_size/;
 
 	#Write out config file
 	my $configName = "$rawFileAndPath.cfg";
@@ -290,6 +313,8 @@ TODO
 
 COMMAND LINE OPTIONS
 
+--bin            Comma-separated list of bin sizes
+                 Default: 1,000,000
 --email          Address to email cluster output 
                  (default: steven.wingett@babraham.ac.uk)
 --help	         Print program help and exit

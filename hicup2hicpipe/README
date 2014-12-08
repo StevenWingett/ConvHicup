@@ -7,7 +7,7 @@ SCRIPTS OVERVIEW
 
 2) mapaGen: Takes the virtual FASTA reads files and maps to the relevant reference genome
 
-3) calcGC: Calculates the %GC content of each restriction fragment
+3) calcGC: Calculates the %GC content of each FEnd
 
 4) mapaFends: Calculates the mapability of each fragment end
 

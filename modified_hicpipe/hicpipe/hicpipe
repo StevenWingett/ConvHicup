@@ -152,7 +152,7 @@ foreach my $fileAndPath (keys %files){
 	foreach my $bin_size (@bin_sizes){
 		my $rawFile = basename($fileAndPath);
 		my $configFileAndPath = "input/$bin_size/$rawFile/$rawFile.cfg";
-		my $jobname = "hicpipe.$rawFile";
+		my $jobname = "hicpipe.$bin_size.$rawFile";
 
 		my $command = "make CFG=$configFileAndPath";
 		my $clusterCommand = "echo \"$command\" | qsub -V -cwd -l vf=4G -pe orte 1 -o $jobname.out -j y -N $jobname -m eas -M $email";

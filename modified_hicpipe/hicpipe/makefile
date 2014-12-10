@@ -104,11 +104,11 @@ clean: check_user_params
 #####################################################################################################
 
 bin/smooth_matrix: src/smooth_matrix.cpp
-	#@mkdir -p bin    #Steven: Makefile no longer checks for binary file
-	#g++ $^ -O2 -o $@ -Wall
+	@mkdir -p bin
+	g++ $^ -O2 -o $@ -Wall
 bin/model_integrate: src/model_integrate.cpp
-	#@mkdir -p bin     #Steven: Makefile no longer checks for binary file
-	#g++ $^ -O2 -o $@ -Wall
+	@mkdir -p bin
+	g++ $^ -O2 -o $@ -Wall
 init: bin/smooth_matrix bin/model_integrate
 
 .DELETE_ON_ERROR:

@@ -125,8 +125,8 @@ foreach my $fileAndPath (keys %files){
 
 		!system("mkdir $Bin/input/$bin_size/$filename") or die "Could not create directory '$Bin/input/$bin_size/$filename' : $!";    #Create directory
 		
-		!system("ln -s $path/$filename $Bin/input/$bin_size/$filename/$filename") 
-			or die "Could not create symbolic link to '$path/$filename' names '$Bin/input/$bin_size/$filename/$filename' : $!";    #Create linke to RAW file
+		!system("ln -s $path/$filename $Bin/input/$bin_size/$filename/$bin_size.$filename") 
+			or die "Could not create symbolic link to '$path/$filename' named '$Bin/input/$bin_size/$filename/$bin_size.$filename' : $!";    #Create linke to RAW file
 
 		#Create link to appropriate FEnds file 
 		my $fendsFileAndPath = $files{$fileAndPath};
@@ -151,7 +151,7 @@ open(LOG, '>', 'hicpipe_wrapper_log.txt') or die "Could not write to 'hicpipe_wr
 foreach my $fileAndPath (keys %files){
 	foreach my $bin_size (@bin_sizes){
 		my $rawFile = basename($fileAndPath);
-		my $configFileAndPath = "input/$bin_size/$rawFile/$rawFile.cfg";
+		my $configFileAndPath = "input/$bin_size/$rawFile/$bin_size.$rawFile.cfg";
 		my $jobname = "hicpipe.$bin_size.$rawFile";
 
 		my $command = "make CFG=$configFileAndPath";
@@ -184,14 +184,14 @@ sub createConfig{
 	my ($template, $fendsFile, $rawFile, $bin_size) = @_;
 
 	my $fendsFileAndPath = "input/$bin_size/$rawFile/$fendsFile";    #Newly created symbolic link
-	my $rawFileAndPath = "input/$bin_size/$rawFile/$rawFile";    #Newly created symbolic link
-	my $outdir = $bin_size . '/' . $rawFile;
+	my $rawFileAndPath = "input/$bin_size/$rawFile/$bin_size.$rawFile";    #Newly created symbolic link
+	my $outdir = $bin_size . '/' . "$bin_size.$rawFile";
 
 	#Edit config file
 	$template =~ s/\[FENDS_FILE_AND_PATH\]/$fendsFileAndPath/;
 	$template =~ s/\[RAW_FILE_AND_PATH\]/$rawFileAndPath/;
 	$template =~ s/\[BIN_RAW_FILE\]/$outdir/;
-	$template =~ s/\[DATASET_TITLE\]/"$rawFile.hicpipe"/;
+	$template =~ s/\[DATASET_TITLE\]/$bin_size.$rawFile.hicpipe/;
 	$template =~ s/\[BIN_SIZE\]/$bin_size/;
 
 	#Write out config file

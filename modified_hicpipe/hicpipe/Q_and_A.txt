@@ -1,0 +1,18 @@
+Q1. In the configuration file there is a setting termed FILTER with options ¡°trans/far_cis/close_cis/both¡± which is used to set how the pipeline estimates biases.  Does ¡°both¡± mean ¡°far_cis¡± &  ¡°close_cis¡± or does it mean all cis & trans, or something else?
+
+A1. "Both" means no filter - use all the fend pairs (cis + trans) to learn the model.
+
+
+Q2. We are trying to identify TADS using the software Armatus (http://www.cs.cmu.edu/~ckingsf/software/armatus/)
+For calling TADs would it make more sense to apply the trans/far_cis/close_cis/both filter to estimate biases?
+
+A2. We (almost?) always learn the technical correction model from the trans pairs, since the interaction probability of the cis pairs is dominated by non technical factors, mainly the linear distance between the interacting loci, which shadows the technical factors. I see no reason to do otherwise here, it is independent from the tool you use to call domains, as far as I see.
+
+
+Q3. The pipeline does not makes smoothed contact matrices (we have set SMOOTH_WIDTH=10).  Do you know why this is happening?  (Incidentally, the unsmoothed matrices are generated.)
+
+A3. If I remember correctly we stopped producing smoothed contact maps at some point, so the call producing them was removed from the makefile. Since the makefile issues a call to the target contact_map for each binsize, the easiest way to produce the smoothed maps is to invoke the smooth_contact_map in the same loop (line 81) or simply to temporarily replace the names of the conact_map and smooth_contact_map targets, and reissue the make command.
+
+
+Regarding the choice of trans vs far/close cis bias, I would recommend to visually inspect the different bias matrices. In some cases they are quite different, probably due to the fact that trans contacts are enriched for inter-molecular ligations (i.e.  between two free flowing fragments) as opposed to intra-molecular ligations (i.e. between two fragments connected by fixation). Therefore in case the far cis and trans biases differ I would recommend to use the more conservative far cis bias.
+

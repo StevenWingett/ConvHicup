@@ -155,7 +155,7 @@ foreach my $fileAndPath (keys %files){
 		my $jobname = "hicpipe.$bin_size.$rawFile";
 
 		my $command = "make CFG=$configFileAndPath";
-		my $clusterCommand = "qsub -clear -cwd -V -l h_vmem=10G -j y -pe orte 1 -o $jobname.out -N $jobname -m eas -M $email $command";
+		my $clusterCommand = "qsub -clear -cwd -V -l h_vmem=50G -j y -pe orte 1 -o $jobname.out -N $jobname -m eas -M $email $command";
 
 		print LOG "$clusterCommand\n";
 		#!system("$command") or die "Could not run '$command' : $!";
